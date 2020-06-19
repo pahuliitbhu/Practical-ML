@@ -1,0 +1,48 @@
+##Loading useful libraries required for prediction
+
+library(caret)
+library(rpart)
+library(rpart.plot)
+library(RColorBrewer)
+library(rattle)
+library(randomForest)
+
+##reading training data set already saved in folder
+pml.training <- read.csv("~/datasciencecoursera/Activity PML/pml-training.csv")
+
+##reading testing data set already saved in folder
+pml.testing <- read.csv("~/datasciencecoursera/Activity PML/pml-testing.csv")
+
+##Pre-processing of data. Need to remove all columns having NA values
+##remove features that are not in testing set.
+##removing first seven columns also as those are not required to fit the model
+features <- names(pml.testing[,colSums(is.na(pml.testing)) == 0])[8:59]
+training <- pml.training[,c(features, "classe")]
+testing <- pml.testing[,c(features, "problem_id")]
+
+##splitting training data into two sets - training & testing
+intrain <- createDataPartition(training$classe, p=0.6, list = FALSE)
+trainingset <- training[intrain,]
+testingset <- training[-intrain,]
+
+##building decision tree model
+DTmodel <- rpart(classe~., data = trainingset, method="class")
+predictionDT <- predict(DTmodel, testingset, type = "class")
+confusionMatrix(predictionDT, testingset$classe)
+
+##building Random Forest Model
+set.seed(12345)
+RFmodel <- randomForest(classe~., data = trainingset, ntree = 1000)
+predictionRF <- predict(RFmodel, testingset, type = "class")
+confusionMatrix(predictionRF, testingset$classe)
+
+##Random forests results in better accuracy of 99.4%
+##we will now predict testing data set with random forest model.
+predictRF <- predict(RFmodel, testing, type = "class")
+predictRF
+
+##Writing this result into file.
+predictRF <- as.data.frame(predictRF)
+pml.testing.out <- pml.testing[,-160]
+pml.testing.out <- cbind(pml.testing.out, predictRF)
+pml.testing.out <- write.csv(pml.testing.out, file = "~/datasciencecoursera/Activity PML/pmloutput.csv")
